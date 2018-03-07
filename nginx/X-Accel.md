@@ -39,27 +39,27 @@ location /protected_files {
 ```
 
 特殊头部：
-X-Accel-Redirect
-语法：X-Accel-Redirect uri
-默认：X-Accel-Redirect void
-功能：设置 NGINX 需要操作的 URI
+X-Accel-Redirect      
+语法：X-Accel-Redirect uri       
+默认：X-Accel-Redirect void       
+功能：设置 NGINX 需要操作的 URI           
 
-X-Accel-Buffering
-语法：X-Accel-Buffering [yes|no]
-默认：X-Accel-Buffering yes
-功能：为本次连接设置代理缓冲。设置为 no , 将允许无缓冲的响应适用于 [Comet](https://en.wikipedia.org/wiki/Comet_(programming)) 和 http 流应用程序； 设置为 yes，将允许缓存该响应.
+X-Accel-Buffering           
+语法：X-Accel-Buffering [yes|no]             
+默认：X-Accel-Buffering yes              
+功能：为本次连接设置代理缓冲。设置为 no , 将允许无缓冲的响应适用于 [Comet](https://en.wikipedia.org/wiki/Comet_(programming)) 和 http 流应用程序； 设置为 yes，将允许缓存该响应.         
 
-X-Accel-Charset
-语法：X-Accel-Charset charset
-默认：X-Accel-Charset utf-8
-功能：设置文件字符编码。
+X-Accel-Charset            
+语法：X-Accel-Charset charset            
+默认：X-Accel-Charset utf-8             
+功能：设置文件字符编码。            
 
-X-Accel-Expires
-语法：X-Accel-Expires [off|seconds]
-默认：X-Accel-Expires off
-功能：设置何时使内部nginx缓存中的文件到期（如果使用的话）。
+X-Accel-Expires           
+语法：X-Accel-Expires [off|seconds]         
+默认：X-Accel-Expires off          
+功能：设置何时使内部nginx缓存中的文件到期（如果使用的话）。              
 
-X-Accel-Limit-Rate
-语法：X-Accel-Limit-Rate bytes [bytes|off]
-默认：X-Accel-Limit-Rate off
-功能：设置单个请求的速率限制，off 代表不限制。
+X-Accel-Limit-Rate             
+语法：X-Accel-Limit-Rate bytes [bytes|off]            
+默认：X-Accel-Limit-Rate off           
+功能：设置单个请求的速率限制，off 代表不限制。           
