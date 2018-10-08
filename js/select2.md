@@ -33,6 +33,7 @@ $('select[name="test"]').select2({
 	selectOnClose: true,  //关闭下拉自动填充第一个值
 	//templateResult: function(){return null}, //定义搜索结果的渲染模板
 	//templateSelection: function(){return null},  //渲染下拉option的渲染模板
+  tags:true, //自定义option
 	width: 'element' //定义宽度
 });
 ```
@@ -82,15 +83,17 @@ $('#mySelect2').select2({
     url: 'https://api.github.com/orgs/select2/repos',
     data: function (params) {    //请求参数
       var query = {
-      	 delay: 250 // wait 250 milliseconds before triggering the request
+      	 delay: 250, // wait 250 milliseconds before triggering the request
          search: params.term,   //params 包含term,q,_type,page四个参数，term和q都代表输入框的内容，_type通常值为query,但会受query_append(用于分页请求)影响，page为当前页码
          page: params.page || 1
       }
 
       // Query parameters will be ?search=[term]&type=public
       return query;
-    }
-    processResults: function (data) {    //格式化返回参数
+    },
+    processResults: function (data,params) {    //格式化返回参数
+       params.page = params.page || 1;   //第一页时params.page为undefined
+
       // Tranforms the top-level key of the response object from 'items' to 'results'
        //服务器端返回results数组对象，需要符合data options的要求，count_filtered代表总页数，计算是否还存在下一页
        return {
@@ -117,6 +120,18 @@ $('#mySelect').val(['1','3']).trigger('change');  //多选
 
 ```
 $('#mySelect2').val(null).trigger('change');
+```
+
+兼容性css
+```
+.select2-container {
+	z-index: 10000000000;
+	display: block;
+	width: 100% !important;
+}
+.select2-container .select2-search__field {
+	width: 100% !important;
+}
 ```
 
 
