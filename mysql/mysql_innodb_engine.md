@@ -247,5 +247,119 @@ InnoDB中的间隙锁是“纯粹的抑制”，这意味着它们的唯一目�
 
 使用READ COMMITTED隔离级别还有其他影响。 MySQL评估WHERE条件后，将释放非匹配行的记录锁。对于UPDATE语句，InnoDB执行“半一致”读取，以便将最新提交的版本返回给MySQL，以便MySQL可以确定该行是否与UPDATE的WHERE条件匹配。
 
+#### next-key Locks
+next-key锁是记录锁和间隙锁的组合，既锁范围，又锁记录本身。解决幻读问题。
 
 
+#### insert intention locks（插入意向锁）
+插入意向锁是在行插入之前由INSERT操作设置的一种间隙锁。这个锁表示插入的意图，即插入相同索引间隙的多个事务如果不插入间隙内的相同位置则不需要等待彼此。假设存在值为4和7的索引记录。分别尝试插入值5和6的事务，分别在获取插入行上的排它锁之前用插入意图锁定锁定4和7之间的间隙，但是不会互相阻塞，因为这些行是非冲突的。
+
+#### auto-inc locks （自增锁）
+AUTO-INC锁是由插入到具有AUTO_INCREMENT列的表中的事务所采用的特殊表级锁。在最简单的情况下，如果一个事务正在向表中插入值，则任何其他事务必须等待对该表执行自己的插入，以便第一个事务插入的行接收连续的主键值。
+
+innodb_autoinc_lock_mode配置选项控制用于自动增量锁定的算法。它允许您选择如何在可预测的自动增量值序列和插入操作的最大并发之间进行权衡
+
+#### Predicate Locks for Spatial Indexes（空间索引的谓词锁）
+
+
+InnoDB Transaction Model（inoodb事务模型）
+---
+
+> 在InnoDB事务模型中，目标是将多版本数据库的最佳属性与传统的两阶段锁定相结合。InnoDB在行级别执行锁定，默认情况下以Oracle的方式运行查询作为非锁定一致性读取。InnoDB中的锁定信息存储空间有效，因此不需要锁定升级。通常，允许多个用户锁定InnoDB表中的每一行或行的任何随机子集，而不会导致InnoDB内存耗尽。
+
+#### transaction isolation levels（事务隔离级别）
+事务隔离是数据库处理的基础之一。隔离级别是在多个事务进行更改并同时执行查询时，对结果的性能和可靠性，一致性和可重现性之间的平衡进行微调的设置。    
+
+InnoDB提供了四种隔离级别：
+* READ UNCOMMITTED （未提交读）
+* READ COMMITTED （已提交读）
+* REPEATEABLE READ （可重复读，默认）
+* SERIALIZABLE （序列化）
+
+用户可以使用`SET TRANSACTION`语句更改单个会话或所有后续连接的隔离级别。要为所有连接设置服务器的默认隔离级别，请在命令行或选项文件中使用--transaction-isolation选项
+
+InnoDB使用不同的锁策略支持此处描述的每个事务隔离级别。您可以使用默认的REPEATABLE READ级别强制执行高度一致性，以便对需要保证ACID的关键数据进行操作。或者您可以放松使用READ COMMITTED甚至READ UNCOMMITTED的一致性规则，例如批量报告，其中精确一致性和可重复结果不如最小化锁定开销量重要。SERIALIZABLE强制执行甚至比REPEATABLE READ更严格的规则，主要用于特殊情况，例如XA事务以及并发和死锁的故障排除问题。
+
+#### REPEATEABLE READ（可重复度）
+默认隔离级别。同一事务中的一致读取（consistent reads）读取第一次读取建立的快照。这意味着如果在同一事务中发出几个普通（非锁定）SELECT语句，这些SELECT语句也相互一致。   
+
+对于锁定式读取（使用FOR UPDATE或FOR SHARE的SELECT），UPDATE和DELETE语句，锁定取决于语句是使用具有唯一搜索条件的唯一索引还是范围类型搜索条件
+* 对于具有唯一搜索条件的唯一索引，InnoDB仅锁定找到的索引记录，而不是之前的间隙。
+* 对于其他搜索条件，InnoDB使用间隙锁或next-key锁来锁定扫描的索引范围，以阻止其他会话插入到范围所涵盖的间隙中
+
+#### READ COMMITTED （已提交读）
+即使在同一事务中，每个一致的读取也会设置和读取自己的新快照。     
+对于锁定读取（使用FOR UPDATE或FOR SHARE的SELECT），UPDATE语句和DELETE语句，InnoDB仅锁定索引记录，而不是它们之前的间隙，因此允许在锁定记录旁边自由插入新记录。间隙锁定仅用于外键约束检查和重复键检查。由于禁用了间隙锁定，因此可能会出现幻像问题（幻读问题），因为其他会话可以在间隙中插入新行。     
+READ COMMITTED隔离级别仅支持基于行（row-based）的二进制日志记录。如果对binlog_format = MIXED使用READ COMMITTED，则服务器会自动使用基于行的日志记录。
+
+使用READ COMMITTED会产生额外的影响：
+* 于UPDATE或DELETE语句，InnoDB仅为其更新或删除的行保留锁定。MySQL评估WHERE条件后，将释放非匹配行的记录锁。这大大降低了死锁的可能性，但它们仍然可以发生。
+* 对于UPDATE语句，如果一行已被锁定，InnoDB执行“半一致”读取，将最新提交的版本返回给MySQL，以便MySQL可以确定该行是否与UPDATE的WHERE条件匹配。如果行匹配（必须更新），MySQL再次读取该行，这次InnoDB将其锁定或等待锁定。
+
+示例：
+```
+CREATE TABLE t (a INT NOT NULL, b INT) ENGINE = InnoDB;
+INSERT INTO t VALUES (1,2),(2,3),(3,2),(4,3),(5,2);
+COMMIT;
+```
+在这种情况下，表没有索引，因此搜索和索引扫描使用隐藏的聚簇索引进行记录锁定而不是索引列。    
+假设一个会话使用以下语句执行UPDATE：
+```
+# Session A
+START TRANSACTION;
+UPDATE t SET b = 5 WHERE b = 3;
+```
+假设第二个会话通过执行第一个会话的那些语句来执行UPDATE：
+```
+# Session B
+UPDATE t SET b = 4 WHERE b = 2;
+```
+当InnoDB执行每个UPDATE时，它首先获取每行的独占锁，然后确定是否修改它。如果InnoDB没有修改行，它会释放锁。否则，InnoDB会保留锁定，直到交易结束。这会影响事务处理，如下所示。     
+使用默认的REPEATABLE READ隔离级别时，第一个UPDATE在它读取的每一行上获取一个x锁定，并且不释放任何一个：
+```
+x-lock(1,2); retain x-lock
+x-lock(2,3); update(2,3) to (2,5); retain x-lock
+x-lock(3,2); retain x-lock
+x-lock(4,3); update(4,3) to (4,5); retain x-lock
+x-lock(5,2); retain x-lock
+```
+第二个UPDATE一旦尝试获取任何锁就会阻塞（因为第一次更新已保留所有行的锁），并且在第一次UPDATE提交或回滚之前不会继续：
+```
+x-lock(1,2); block and wait for first UPDATE to commit or roll back
+```
+如果使用READ COMMITTED，则第一个UPDATE在它读取的每一行上获取一个x锁，并释放那些不修改的行：
+```
+x-lock(1,2); unlock(1,2)
+x-lock(2,3); update(2,3) to (2,5); retain x-lock
+x-lock(3,2); unlock(3,2)
+x-lock(4,3); update(4,3) to (4,5); retain x-lock
+x-lock(5,2); unlock(5,2)
+```
+对于第二个UPDATE，InnoDB执行“半一致”读取，返回它读取到MySQL的每一行的最新提交版本，以便MySQL可以确定该行是否与UPDATE的WHERE条件匹配：
+```
+x-lock(1,2); update(1,2) to (1,4); retain x-lock
+x-lock(2,3); unlock(2,3)
+x-lock(3,2); update(3,2) to (3,4); retain x-lock
+x-lock(4,3); unlock(4,3)
+x-lock(5,2); update(5,2) to (5,4); retain x-lock
+```
+但是，如果WHERE条件包含索引列，并且InnoDB使用该索引，则在获取和保留记录锁时仅考虑索引列。在下面的示例中，第一个UPDATE在每个行上获取并保留一个x锁定，其中b = 2.第二个UPDATE在尝试获取相同记录的x锁时阻塞，因为它还使用在列b上定义的索引。
+```
+
+CREATE TABLE t (a INT NOT NULL, b INT, c INT, INDEX (b)) ENGINE = InnoDB;
+INSERT INTO t VALUES (1,2,3),(2,2,4);
+COMMIT;
+
+# Session A
+START TRANSACTION;
+UPDATE t SET b = 3 WHERE b = 2 AND c = 3;
+
+# Session B
+UPDATE t SET b = 4 WHERE b = 2 AND c = 4;
+```
+
+#### READ UNCOMMITTED
+SELECT语句以非锁定方式执行，但可能会使用行的早期版本。因此，使用此隔离级别，读取的数据不一致，这也称为脏读。否则，此隔离级别与READ COMMITTED类似。
+
+#### SERIALIZABLE
+这个级别就像REPEATABLE READ，但InnoDB隐式地将所有普通SELECT语句转换为`SELECT ... FOR SHARE`,如果是禁用了autocommit。如果启用了自动提交，则SELECT是其自己的事务。因此，已知它是只读的，并且如果作为一致（非锁定）读取执行则可以序列化，并且不需要阻止其他事务。（要强制普通SELECT阻止其他事务已修改所选行，请禁用autocommit。）
