@@ -1,11 +1,26 @@
 <?php
-//参考：https://redis.io/commands/setnx
-
-//互斥锁
 $redis = new Redis();
 $redis->connect('127.0.0.1');
 var_dump($redis->ping());
 
+//参考：https://redis.io/commands/set
+//2.6.0以后，set支持设置过期时间
+$unique_random_str = 'xxxx';
+$key = 'xxxkey';
+$res = $redis->set($key, $unique_random_str, ['NX', 'EX' => 60]);
+if ($res) {
+	//do something
+	var_dump('hell');
+	
+	//release lock, 为了防止本次连接获得的锁已过期，导致释放了下一个获得锁的连接，因此需要根据锁的值来判定是否属于本次连接，官方文档做法要求是要用脚本代替del，不明白
+	if ($unique_random_str == $redis->get($key)) {
+		$redis->del($key);
+	}
+}
+
+
+//参考：https://redis.io/commands/setnx
+//互斥锁
 $timeout = 300;
 $lock_time = time() + $timeout + 1;
 $lock_name = 'lock';
@@ -49,6 +64,10 @@ while($lock != 1) {
 if(time() < $lock_time) {
 	$redis->del($lock_name);
 }
+
+
+
+
 
 
 
