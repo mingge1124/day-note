@@ -38,10 +38,40 @@ occupied by 占用
 throughput 吞吐量       
 Phantom Read 幻读         
 block 阻塞    
+non-blocking 非阻塞
 manipulation 操作          
 sequentially 按顺序地      
 sync 同步      
 async 异步     
 mask 掩码      
 pseudo code 伪代码     
+implicit  隐式的
+memory allocation 内存分配
+memory deallocation 内存释放
+memory consumption
+内存消耗
+alternative 可选的
+foundation 地基，基础
+authentication 认证
+authorize  授权
+certificate 证书
+identifier 检验，验证
+TLS(Transport Layer Security) 运输层安全
+SSL(Secure Sockerts Layer) 安全套接口层
+commercial-grade 商业级别的
+multiplexed 多路复用
+cryptographically secure pseudo-random number generator (CSPRNG) 密码安全伪随机数生成器
+message digest 消息摘要
+misconceptions 误解，错觉，错误想法
+essential 必需品，基本要素
+enforce 加强，执行
+guarantees 保证，担保
+reliable 可靠的
+integriy 完整性
+decouple 解耦
+syntax analysis 语法分析
+lexical analysis 词法分析
 
+
+### 组织名
+ECMA（European Computer Manufacturers Association）欧洲计算机制造商协会（国际标准化组织）
